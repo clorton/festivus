@@ -41,7 +41,8 @@ class OptionParser(HTMLParser):
 @click.command()
 @click.option("--getboxes", "getBoxes", default=False, help="Get list of boxes.")
 @click.option("--getresults", "getResults", default=False, help="Get list of results.")
-def main(getBoxes: bool, getResults: bool):
+@click.option("--usecsv", "useCsv", default=True, help="Use CSV instead of JSON.")
+def main(getBoxes: bool, getResults: bool, useCsv: bool):
 
     """Festivus: A Python CLI for the Rest of Us"""
 
@@ -104,31 +105,49 @@ def main(getBoxes: bool, getResults: bool):
 
     print(f"{len(results)=}")
 
-    scores = []
+    if not useCsv:
 
-    for box in results:
+        scores = []
 
-        workout_map = {w["key"]: w["name"] for w in box["workouts"]}
-        
-        for athlete in box["athletes"]:
-            collected = [("name", athlete["name"]), ("affiliate", athlete["affiliate"])]
-            collected.extend([(workout_map[workout], data["res"]) for workout, data in athlete["workoutScores"].items()])
-            scores.append(collected)
+        for box in results:
 
-    print(f"{len(scores)=}")
+            workout_map = {w["key"]: w["name"] for w in box["workouts"]}
+            
+            for athlete in box["athletes"]:
+                collected = [("name", athlete["name"]), ("affiliate", athlete["affiliate"])]
+                collected.extend([(workout_map[workout], data["res"]) for workout, data in athlete["workoutScores"].items()])
+                scores.append(collected)
 
-    columns = set()
-    for score in scores:
-        for entry in score:
-            columns.add(entry[0])
+        print(f"{len(scores)=}")
 
-    print(f"{columns=}")
+        columns = set()
+        for score in scores:
+            for entry in score:
+                columns.add(entry[0])
+
+        print(f"{columns=}")
+
+        df = pd.DataFrame([{k:v for k,v in entry} for entry in [score for score in scores]], columns=["name", "affiliate", "Hoppin' and Poppin'!", "3-1-2? It's So Complex!", "Toss it, I'm Over It! (Row)", "Toss it, I'm Over It! (Metcon)", "Get on Up 'n Git Down"])
+        df.to_csv("scores.csv", index=False)
+
+    else:
+
+        df = pd.read_csv("scores.csv")
+
+    rankOnColumn(df, "Hoppin' and Poppin'!", ascending=True, newColumn="WOD1")
+    rankOnColumn(df, "3-1-2? It's So Complex!", ascending=False, newColumn="WOD2")
+    rankOnColumn(df, "Toss it, I'm Over It! (Row)", ascending=False, newColumn="WOD3")
+    rankOnColumn(df, "Toss it, I'm Over It! (Metcon)", ascending=False, newColumn="WOD4")
+    rankOnColumn(df, "Get on Up 'n Git Down", ascending=True, newColumn="WOD5")
+
+    df["Total"] = df["WOD1"] + df["WOD2"] + df["WOD3"] + df["WOD4"] + df["WOD5"]
+    df.to_csv("ranked.csv")
+
+    return
 
 
-
-    df = pd.DataFrame([{k:v for k,v in entry} for entry in [score for score in scores]], columns=["name", "affiliate", "Hoppin' and Poppin'!", "3-1-2? It's So Complex!", "Toss it, I'm Over It! (Row)", "Toss it, I'm Over It! (Metcon)", "Get on Up 'n Git Down"])
-    df.to_csv("scores.csv", index=False)
-
+def rankOnColumn(df: pd.DataFrame, column: str, ascending: bool, newColumn: str) -> None:
+    df[newColumn] = df[column].rank(ascending=ascending, method="min")
     return
 
 

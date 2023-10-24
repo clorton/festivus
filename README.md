@@ -1,2 +1,3 @@
-# festivus
-collate results from festivus
+# Festivus October 2023
+
+Collate results from Festivus
